@@ -10,14 +10,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         AppManager.getAppManager().addActivity(this);
-//        new Thread(new Runnable() {
-//            @Override
-//            public void run() {
-////                Thread.currentThread().setUncaughtExceptionHandler( CrashHandler.getInstance());
-//                Object o=null;
-//                o.toString();
-//            }
-//        }).start();
 
         Object o=null;
         o.toString();
