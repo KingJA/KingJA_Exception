@@ -7,9 +7,11 @@ import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -22,8 +24,11 @@ import java.util.Date;
  */
 public class CrashHandler implements Thread.UncaughtExceptionHandler {
     private static CrashHandler mCrashHandler;
+    private static final String LOG_DIR = "KLogs";
+    private static final String LOG_FILENAME = "CrashLogs.txt";
     private Thread.UncaughtExceptionHandler mDefaultHandler;
     private Context context;
+    private File logDir;
 
     private CrashHandler() {
 
@@ -48,34 +53,55 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
 
     @Override
     public void uncaughtException(Thread thread, Throwable ex) {
-        Log.e("uncaughtException", "uncaughtException: ");
-        if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
-            File logDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/KLogs");
-            if (!logDir.exists()) {
-                logDir.mkdirs();
-            }
-            File logFile = new File(logDir, "CrashLogs.txt");
-            FileWriter fw = null;
-            try {
-                fw = new FileWriter(logFile, true);
-                fw.write(getExceptionInfo(ex) + "\n");
-                // uploadToServer();
-            } catch (IOException e) {
-                Log.e("CrashHandler", "load file failed...  ", e.getCause());
-            } finally {
-                if (fw != null) {
-                    try {
-                        fw.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-        ex.printStackTrace();//打印System.err Log
+        savaToSdCard(ex);
+        uploadToService(ex);
+        ex.printStackTrace();
 //        mDefaultHandler.uncaughtException(thread, ex);//打印RuntimeException Log
         AppManager.getAppManager().finishAllActivity();
         android.os.Process.killProcess(android.os.Process.myPid());
+    }
+
+    /**
+     * 上传异常信息到服务器
+     *
+     * @param ex
+     */
+    private void uploadToService(Throwable ex) {
+
+    }
+
+    /**
+     * 保存异常信息到本地
+     *
+     * @param ex
+     */
+    private void savaToSdCard(Throwable ex) {
+        if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
+            logDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + LOG_DIR);
+        } else {
+            logDir = new File(context.getFilesDir().getAbsolutePath() + File.separator + LOG_DIR);
+        }
+        if (!logDir.exists()) {
+            logDir.mkdirs();
+        }
+        File logFile = new File(logDir, LOG_FILENAME);
+        PrintWriter pw;
+        try {
+            pw = new PrintWriter(new BufferedWriter(new FileWriter(logFile, true)));
+            pw.println(getFormaTime());
+            pw.println("===================");
+            pw.println("Crash Thread:     " + Thread.currentThread().getName());
+            pw.println("Phone Info:       " + android.os.Build.MODEL + ","
+                    + android.os.Build.VERSION.SDK_INT + ","
+                    + android.os.Build.VERSION.RELEASE + ","
+                    + android.os.Build.CPU_ABI);
+            pw.println(getVersionInfo(context));
+            ex.printStackTrace(pw);
+            pw.close();
+        } catch (IOException e) {
+            Log.e("CrashHandler", "save file failed...  ", e.getCause());
+
+        }
     }
 
     /**
@@ -89,7 +115,7 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
         StringBuilder sb = new StringBuilder();
         sb.append(getFormaTime() + "\n");
         sb.append("===================" + "\n");
-        sb.append("Product Model: " + android.os.Build.MODEL + ","
+        sb.append("Phone Model: " + android.os.Build.MODEL + ","
                 + android.os.Build.VERSION.SDK_INT + ","
                 + android.os.Build.VERSION.RELEASE + ","
                 + android.os.Build.CPU_ABI + "\n");
@@ -125,7 +151,7 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
             PackageManager pm = context.getPackageManager();
             pi = pm.getPackageInfo(context.getPackageName(),
                     PackageManager.GET_CONFIGURATIONS);
-            return pi.packageName + "\tVersionCode:" + pi.versionCode + "\tVersionName:" + pi.versionName;
+            return "Application Info: " + pi.packageName + ",VersionCode:" + pi.versionCode + ",VersionName:" + pi.versionName;
         } catch (Exception e) {
             e.printStackTrace();
         }
