@@ -24,11 +24,11 @@ import java.util.Date;
  */
 public class CrashHandler implements Thread.UncaughtExceptionHandler {
     private static CrashHandler mCrashHandler;
-    private static final String LOG_DIR = "KLogs";
-    private static final String LOG_FILENAME = "CrashLogs.txt";
+    public static final String LOG_DIR = "KLogs";
+    public static final String LOG_FILENAME = "CrashLogs.txt";
     private Thread.UncaughtExceptionHandler mDefaultHandler;
     private Context context;
-    private File logDir;
+    private File mLogDir;
 
     private CrashHandler() {
 
@@ -55,10 +55,12 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
     public void uncaughtException(Thread thread, Throwable ex) {
         savaToSdCard(ex);
         uploadToService(ex);
-        ex.printStackTrace();
-//        mDefaultHandler.uncaughtException(thread, ex);//打印RuntimeException Log
-        AppManager.getAppManager().finishAllActivity();
-        android.os.Process.killProcess(android.os.Process.myPid());
+        AppManager.getAppManager().finishAllActivity();//避免前台的其他APP被关闭
+        if (mDefaultHandler != null) {
+            mDefaultHandler.uncaughtException(thread, ex);
+        } else {
+            android.os.Process.killProcess(android.os.Process.myPid());
+        }
     }
 
     /**
@@ -77,14 +79,14 @@ public class CrashHandler implements Thread.UncaughtExceptionHandler {
      */
     private void savaToSdCard(Throwable ex) {
         if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
-            logDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + LOG_DIR);
+            mLogDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + LOG_DIR);
         } else {
-            logDir = new File(context.getFilesDir().getAbsolutePath() + File.separator + LOG_DIR);
+            mLogDir = new File(context.getFilesDir().getAbsolutePath() + File.separator + LOG_DIR);
         }
-        if (!logDir.exists()) {
-            logDir.mkdirs();
+        if (!mLogDir.exists()) {
+            mLogDir.mkdirs();
         }
-        File logFile = new File(logDir, LOG_FILENAME);
+        File logFile = new File(mLogDir, LOG_FILENAME);
         PrintWriter pw;
         try {
             pw = new PrintWriter(new BufferedWriter(new FileWriter(logFile, true)));
